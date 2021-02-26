@@ -1,5 +1,5 @@
 project(RE-Flex)
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 option(REFLEX_TEST "Build the reflex tests" OFF)
 option(REFLEX_SANITIZER_BUILD "Build using AddressSanitizer" OFF)
