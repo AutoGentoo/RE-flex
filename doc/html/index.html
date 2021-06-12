@@ -21,7 +21,7 @@
      <td>
       <div style="float: right; font-size: 18px; font-weight: bold;">RE/flex user guide</div>
       <br>
-      <div style="float: right; font-size: 10px;">updated Sat Oct 24 2020 by Robert van Engelen</div>
+      <div style="float: right; font-size: 10px;">updated Sun Jun 6 2021 by Robert van Engelen</div>
      </td>
      <td width="10%">&nbsp;</td>
     </tr>
@@ -165,8 +165,10 @@ What is RE/flex?                                                       </h1>
 <ul>
 <li>faster than Flex++ for typical applications such as tokenization;</li>
 <li>accepts Flex/Lex lexer specifications, extended to support Unicode;</li>
-<li>fully supports Unicode, auto-detects UTF-8/16/32 input;</li>
+<li>IEEE POSIX P1003.2 standard compliant (like Lex and Flex);</li>
+<li>fully supports Unicode, auto-detects UTF-8/16/32 with smart input handling;</li>
 <li>supports legacy file encoding formats, e.g. CP 1250, EBCDIC.</li>
+<li>offers methods for lex/syntax <a class="el" href="index.html#errors">Error reporting and recovery </a>;</li>
 <li>easily integrates with Bison reentrant, C++, bridge and location parsers;</li>
 <li>generates source code that is easy to understand;</li>
 <li>generates thread-safe scanners;</li>
@@ -634,7 +636,7 @@ Scanner options</h3>
 <h4><code>-u</code>, <code>−−unicode</code></h4>
 <p>This option makes <code>.</code>, <code>\s</code>, <code>\w</code>, <code>\l</code>, <code>\u</code>, <code>\S</code>, <code>\W</code>, <code>\L</code>, <code>\U</code> match Unicode. Also groups UTF-8 sequences in the regex, such that each UTF-8 encoded character in a regex is properly matched as one wide character.</p>
 <h4><code>-x</code>, <code>−−freespace</code></h4>
-<p>This option switches the <b><code>reflex</code></b> scanner to <em>free space mode</em>. Regular expressions in free space mode may contain spacing to improve readability. Spacing within regular expressions is ignored, so use <code>" "</code> or <code>[ ]</code> to match a space and <code>\h</code> to match a space or a tab character. Actions in free space mode MUST be placed in <em><code>{ }</code></em> blocks and user code must be placed in <em><code>%{ %}</code></em> blocks. Patterns ending in an escape <code>\</code> continue on the next line.</p>
+<p>This option switches the <b><code>reflex</code></b> scanner to <em>free space mode</em>. Regular expressions in free space mode may contain spacing and may be indented to improve readability. All spacing before, within and after regular expressions is ignored. To match a space use <code>" "</code> or <code>[ ]</code>, and use <code>\h</code> to match a space or a tab character. Actions in free space mode MUST be placed in <em><code>{ }</code></em> blocks and user code must be placed in <em><code>%{ %}</code></em> blocks. Patterns ending in an escape <code>\</code> continue on the next line.</p>
 <p>🔝 <a href="#">Back to table of contents</a></p>
 <h3><a class="anchor" id="reflex-options-files"></a>
 Output files options</h3>
@@ -1027,11 +1029,15 @@ Pattern syntax</h3>
 <tr>
 <td><code>\cX</code> </td><td>matches the control character <code>X</code> mod 32 (e.g. <code>\cA</code> is <code>\x01</code>) </td></tr>
 <tr>
-<td><code>\0177</code> </td><td>matches an 8-bit character with octal value <code>177</code> (use <code>\177</code> in lexer specifications instead, see below) </td></tr>
+<td><code>\0141</code> </td><td>matches an 8-bit character with octal value <code>141</code> (use <code>\141</code> in lexer specifications instead, see below) </td></tr>
 <tr>
 <td><code>\x7f</code> </td><td>matches an 8-bit character with hexadecimal value <code>7f</code> </td></tr>
 <tr>
-<td><code>\x{7f}</code> </td><td>matches an 8-bit character with hexadecimal value <code>7f</code> </td></tr>
+<td><code>\x{3B1}</code> </td><td>matches Unicode character U+03B1, i.e. <code>α</code> </td></tr>
+<tr>
+<td><code>\u{3B1}</code> </td><td>matches Unicode character U+03B1, i.e. <code>α</code> </td></tr>
+<tr>
+<td><code>\o{141}</code> </td><td>matches U+0061, i.e. <code>a</code>, in octal </td></tr>
 <tr>
 <td><code>\p{C}</code> </td><td>matches a character in category C of <a class="el" href="index.html#reflex-pattern-cat">Character categories</a> </td></tr>
 <tr>
@@ -1077,7 +1083,7 @@ Pattern syntax</h3>
 <tr>
 <td><code>(?&lt;=φ)</code> </td><td>matches <code>φ</code> to the left without consuming it (<a class="el" href="index.html#reflex-pattern-lookbehind">Lookbehind</a>, not supported by the RE/flex matcher) </td></tr>
 <tr>
-<td><code>(?^φ)</code> </td><td>matches <code>φ</code> and ignore it to continue matching (RE/flex matcher only) </td></tr>
+<td><code>(?^φ)</code> </td><td>matches <code>φ</code> and ignores it, marking everything as a non-match to continue matching (RE/flex matcher only) </td></tr>
 <tr>
 <td><code>^φ</code> </td><td>matches <code>φ</code> at the begin of input or begin of a line (requires multi-line mode) (top-level <code>φ</code>, not nested in a sub-pattern) </td></tr>
 <tr>
@@ -1176,7 +1182,7 @@ Trigraphs in C/C++ strings are special tripple-character sequences, beginning wi
 <p>🔝 <a href="#">Back to table of contents</a></p>
 <h3><a class="anchor" id="reflex-pattern-class"></a>
 Character classes</h3>
-<p>Character classes in bracket lists represent sets of characters. Sets can be negated (or inverted), subtracted, intersected, and merged:</p>
+<p>Character classes in bracket lists represent sets of characters. Sets can be negated (or inverted), subtracted, intersected, and merged (except for the <code>PCRE2Matcher</code>):</p>
 <table class="doxtable">
 <tr>
 <th>Pattern </th><th>Matches  </th></tr>
@@ -1193,12 +1199,12 @@ Character classes</h3>
 </table>
 <p>Bracket lists cannot be empty, so <code>[]</code> and <code>[^]</code> are invalid. In fact, the first character after the bracket is always part of the list. So <code>[][]</code> is a list that matches a <code>]</code> and a <code>[</code>, <code>[^][]</code> is a list that matches anything but <code>]</code> and <code>[</code>, and <code>[-^]</code> is a list that matches a <code>-</code> and a <code>^</code>.</p>
 <p>It is an error to construct an empty character class by subtraction or by intersection, for example <code>[a&amp;&amp;[b]]</code> is invalid.</p>
-<p>Bracket lists may contain ASCII and Unicode <a class="el" href="index.html#reflex-pattern-cat">Character categories</a>, for example <code>[a-z\d]</code> and <code>[a-z[:digit:]]</code> contain the letters <code>a</code> to <code>z</code> and digits <code>0</code> to <code>9</code>. To add Unicode character categories and wide characters (encoded in UTF-8) to bracket lists <a class="el" href="index.html#reflex-pattern-unicode">Unicode mode</a> should be enabled.</p>
+<p>Bracket lists may contain ASCII and Unicode <a class="el" href="index.html#reflex-pattern-cat">Character categories</a>, for example <code>[a-z\d]</code> contains the letters <code>a</code> to <code>z</code> and digits <code>0</code> to <code>9</code> (or Unicode digits when Unicode is enabled). To add Unicode character categories and wide characters (encoded in UTF-8) to bracket lists <a class="el" href="index.html#reflex-pattern-unicode">Unicode mode</a> should be enabled.</p>
 <p>An negated Unicode character class is constructed by subtracting the character class from the Unicode range U+0000 to U+D7FF and U+E000 to U+10FFFF.</p>
 <p>Character class operations can be chained together in a bracket list. The union <code>||</code>, intersection <code>&amp;&amp;</code>, and subtraction <code>--</code> operations are left associative and have the same operator precedence. For example, <code>[a-z||[A-Z]--[aeiou]--[AEIOU]]</code>, <code>[a-z--[aeiou]||[A-Z]--[AEIUO]]</code>, <code>[a-z&amp;&amp;[^aeiou]||[A-Z]&amp;&amp;[^AEIOU]]</code>, and <code>[B-DF-HJ-NP-TV-Zb-df-hj-np-tv-z]</code> are the same character classes.</p>
 <p>Character class operations may be nested. For example, <code>[a-z||[A-Z||[0-9]]]</code> is the same as <code>[a-zA-Z0-9]</code>.</p>
 <p>Character class negation, when specified, is applied to the resulting character class after the character class operations are applied. For example, <code>[^a-z||[A-Z]]</code> is the same as <code>[^||[a-z]||[A-Z]]</code>, which is the class <code>[^a-zA-Z]</code>.</p>
-<p>Note that negated character classes such as <code>[^a-zA-Z]</code> match newlines when <code>\n</code> is not included in the class. Include <code>\n</code> in the negated character class to prevent matching newlines. The <code><a class="el" href="namespacereflex_1_1convert__flag.html#aaed1f496284028394303d24be3e7bbb9" title="inverted character classes do not match newline \n ">reflex::convert_flag::notnewline</a></code> removes newlines from negated character classes when used with <a class="el" href="index.html#regex-convert">Regex converters </a>.</p>
+<p>Note that negated character classes such as <code>[^a-zA-Z]</code> match newlines when <code>\n</code> is not included in the class. Include <code>\n</code> in the negated character class to prevent matching newlines. The <code><a class="el" href="namespacereflex_1_1convert__flag.html#aaed1f496284028394303d24be3e7bbb9" title="inverted character classes and  do not match newline \n ">reflex::convert_flag::notnewline</a></code> removes newlines from negated character classes when used with <a class="el" href="index.html#regex-convert">Regex converters </a>.</p>
 <p>A lexer specification may use a defined name in place of the second operand of a character class operation. A defined name when used as an operand should expand into a POSIX character class containing ASCII characters only. For example:</p>
 <div class="alt"> <div class="fragment"><div class="line"><a class="code" href="reflex_8cpp.html#afd21dbba9aaf2944d477caa4caddd963">lower</a>     [a-z]</div><div class="line">upper     [A-Z]</div><div class="line">letter    [||{<a class="code" href="reflex_8cpp.html#afd21dbba9aaf2944d477caa4caddd963">lower</a>}||{upper}]</div><div class="line">alnum     [0-9||{letter}]</div><div class="line">name      {letter}{alnum}*</div><div class="line">%%</div><div class="line">{name}    std::cout &lt;&lt; <span class="stringliteral">&quot;name: &quot;</span> &lt;&lt; text() &lt;&lt; std::endl;</div><div class="line">.|\n      <span class="comment">// skip everything else</span></div><div class="line">%%</div></div><!-- fragment --> </div><dl class="section warning"><dt>Warning</dt><dd>Defined names may only occur immediately after a <code>||</code>, <code>&amp;&amp;</code>, and a <code>--</code> operator in a bracket list. Do not place a defined name as the first operand to a union, intersection, and subtraction operation, because the definition is not expanded. For example, <code>[{lower}||{upper}]</code> contains <code>[A-Zelorw{}]</code>. The name and the <code>{</code>, <code>}</code> characters are literally included in the resulting character class. Instead, this bracket list should be written as <code>[||{lower}||{upper}]</code>. Likewise, <code>[^{lower}||{upper}]</code> should be written as <code>[^||{lower}||{upper}]</code>.</dd></dl>
 <p>Alternatively, unions may be written as alternations. That is, <code>[||{name1}||{name2}||{name3}||...]</code> can be written as <code>({name1}|{name2}|{name3}|...)</code>, where the latter form supports full Unicode not restricted to ASCII.</p>
@@ -1240,7 +1246,7 @@ Character categories</h3>
 <tr>
 <td><code>[:blank:]</code> </td><td><code>\p{Blank}</code>, <code>\h</code> </td><td>matches a blank <code>[ \t]</code> </td></tr>
 <tr>
-<td><code>[:digit:]</code> </td><td><code>\p{Digit}</code>, <code>\d</code> </td><td>matches a digit <code>[0-9]</code> </td></tr>
+<td><code>[:digit:]</code> </td><td><code>\p{Digit}</code> </td><td>matches a digit <code>[0-9]</code> </td></tr>
 <tr>
 <td><code>[:graph:]</code> </td><td><code>\p{Graph}</code> </td><td>matches a visible character <code>[\x21-\x7e]</code> </td></tr>
 <tr>
@@ -1254,7 +1260,7 @@ Character categories</h3>
 <tr>
 <td><code>[:^blank:]</code> </td><td><code>\P{Blank}</code>, <code>\H</code> </td><td>matches a non-blank character <code>[^ \t]</code> </td></tr>
 <tr>
-<td><code>[:^digit:]</code> </td><td><code>\P{Digit}</code>, <code>\D</code> </td><td>matches a non-digit <code>[^0-9]</code> </td></tr>
+<td><code>[:^digit:]</code> </td><td><code>\P{Digit}</code> </td><td>matches a non-digit <code>[^0-9]</code> </td></tr>
 </table>
 <p>The POSIX forms are used in bracket lists. For example <code>[[:lower:][:digit:]]</code> matches an ASCII lower case letter or a digit.</p>
 <p>You can also use the upper case <code>\P{C}</code> form that has the same meaning as <code>\p{^C}</code>, which matches any character except characters in the class <code>C</code>. For example, <code>\P{ASCII}</code> is the same as <code>\p{^ASCII}</code> which is the same as <code>[^[:ascii:]]</code>.</p>
@@ -1266,21 +1272,47 @@ Character categories</h3>
 <tr>
 <td><code>.</code> </td><td>matches any single Unicode character except newline (including <a class="el" href="index.html#invalid-utf">Invalid UTF encodings </a>) </td></tr>
 <tr>
-<td><code>\X</code> </td><td>matches any Unicode character (with or without the <code>−−unicode</code> option) </td></tr>
+<td><code>\a</code> </td><td>matches BEL U+0007 </td></tr>
 <tr>
-<td><code>\x{3B1}</code>, <code>\u{3B1}</code> </td><td>matches Unicode character U+03B1, i.e. <code>α</code> </td></tr>
+<td><code>\d</code> </td><td>matches a digit <code>\p{Nd}</code> </td></tr>
+<tr>
+<td><code>\D</code> </td><td>matches a non-digit </td></tr>
+<tr>
+<td><code>\e</code> </td><td>matches ESC U+001b </td></tr>
+<tr>
+<td><code>\f</code> </td><td>matches FF U+000c </td></tr>
+<tr>
+<td><code>\l</code> </td><td>matches a lower case letter <code>\p{Ll}</code> </td></tr>
+<tr>
+<td><code>\n</code> </td><td>matches LF U+000a </td></tr>
+<tr>
+<td><code>\N</code> </td><td>matches any non-LF character </td></tr>
+<tr>
+<td><code>\r</code> </td><td>matches CR U+000d </td></tr>
 <tr>
 <td><code>\R</code> </td><td>matches a Unicode line break </td></tr>
 <tr>
-<td><code>\s</code>, <code>\p{Zs}</code> </td><td>matches a white space character with Unicode sub-propert Zs </td></tr>
+<td><code>\s</code> </td><td>matches a white space character <code>[ \t\v\f\r\x85\p{Z}]</code> excluding <code>\n</code> </td></tr>
 <tr>
-<td><code>\l</code>, <code>\p{Ll}</code> </td><td>matches a lower case letter with Unicode sub-property Ll </td></tr>
+<td><code>\S</code> </td><td>matches a non-white space character </td></tr>
 <tr>
-<td><code>\u</code>, <code>\p{Lu}</code> </td><td>matches an upper case letter with Unicode sub-property Lu </td></tr>
+<td><code>\t</code> </td><td>matches TAB U+0009 </td></tr>
 <tr>
-<td><code>\w</code>, <code>\p{Word}</code> </td><td>matches a Unicode word character with property L, Nd, or Pc </td></tr>
+<td><code>\u</code> </td><td>matches an upper case letter <code>\p{Lu}</code> </td></tr>
 <tr>
-<td><code>\p{Unicode}</code> </td><td>matches any Unicode character (U+0000 to U+10FFFF minus U+D800 to U+DFFF) </td></tr>
+<td><code>\v</code> </td><td>matches VT U+000b </td></tr>
+<tr>
+<td><code>\w</code> </td><td>matches a Unicode word character <code>[\p{L}\p{Nd}\p{Pc}]</code> </td></tr>
+<tr>
+<td><code>\W</code> </td><td>matches a non-Unicode word character </td></tr>
+<tr>
+<td><code>\X</code> </td><td>matches any ISO-8859-1 or Unicode character </td></tr>
+<tr>
+<td><code>\p{Space}</code> </td><td>matches a white space character <code>[ \t\n\v\f\r\x85\p{Z}]</code> including <code>\n</code> </td></tr>
+<tr>
+<td><code>\p{Unicode}</code> </td><td>matches any Unicode character U+0000 to U+10FFFF minus U+D800 to U+DFFF </td></tr>
+<tr>
+<td><code>\p{ASCII}</code> </td><td>matches an ASCII character U+0000 to U+007F </td></tr>
 <tr>
 <td><code>\p{ASCII}</code> </td><td>matches an ASCII character U+0000 to U+007F) </td></tr>
 <tr>
@@ -1855,7 +1887,7 @@ Unicode mode</h3>
 <tr>
 <td><code>\R</code> </td><td>matches a Unicode line break <code>\r\n</code> or <code>[\u{000A}-\u{000D}u{U+0085}\u{2028}\u{2029}]</code> </td></tr>
 <tr>
-<td><code>\s</code> </td><td>matches a white space character with Unicode sub-property Zs </td></tr>
+<td><code>\s</code> </td><td>matches a white space character <code>[ \t\n\v\f\r\p{Z}]</code> </td></tr>
 <tr>
 <td><code>\l</code> </td><td>matches a lower case letter with Unicode sub-property Ll </td></tr>
 <tr>
@@ -2047,7 +2079,7 @@ Start condition states                                         </h2>
 <div class="alt"> <div class="fragment"><div class="line">%s A B C</div><div class="line"></div><div class="line">%%</div><div class="line"></div><div class="line">&lt;B,C&gt;{</div><div class="line">pattern    action    <span class="comment">// rule for states B and C</span></div><div class="line">&lt;A,^B&gt;{</div><div class="line">pattern    action    <span class="comment">// rule for states A and C</span></div><div class="line">}</div><div class="line">}</div><div class="line"></div><div class="line">&lt;*,^A,^C&gt;pattern    action    <span class="comment">// rule for states INITIAL and B (all states except A and C)</span></div><div class="line"></div><div class="line">%%</div></div><!-- fragment --> </div><p>Note that scopes should be read from outer to inner scope, and from left to right in a <code>&lt;...&gt;</code> scope declaration. This means that <code>&lt;*,^A,^C&gt;</code> first extends the scope to include all start conditions and then removes <code>A</code> and <code>C</code>.</p>
 <p>A start condition cannot be removed when it is not included in the current scope. For example, <code>&lt;*,^A&gt;</code> is correct but <code>&lt;^A,*&gt;</code> is incorrect when used as a top-level scope.</p>
 <p>Empty <code>&lt;&gt;</code> without start condition states cannot be specified because this is a valid regex pattern. To remove all states from a scope use <code>&lt;^*&gt;</code>. This construct is only useful when the empty scope is extended by start conditions specified in sub-scopes.</p>
-<dl class="section note"><dt>Note</dt><dd>Contrary to some Flex manuals, rules cannot be indented in a start condition scope in Flex and RE/flex. When a code block is specified indented at the begin of a start condition scope it is considered an initial code block, see <a class="el" href="index.html#reflex-code-blocks">Initial code blocks </a>.</dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Contrary to some Flex manuals, rules cannot be indented in a start condition scope. When a code block is indented at the begin of a start condition scope it is considered an initial code block, see <a class="el" href="index.html#reflex-code-blocks">Initial code blocks </a>. All indented lines are considered actions. Note that <em><code>%option freespace</code></em> allows patterns to be indented. With this option all action code blocks must be bracketed.</dd></dl>
 <p>🔝 <a href="#">Back to table of contents</a></p>
 <h2><a class="anchor" id="reflex-code-blocks"></a>
 Initial code blocks                                       </h2>
@@ -2409,7 +2441,7 @@ Examples                                                     </h2>
 <p>🔝 <a href="#">Back to table of contents</a></p>
 <h3>Example 4</h3>
 <p>This example Flex specification scans non-Unicode C/C++ source code. It uses free space mode to enhance readability.</p>
-<div class="alt"> <div class="fragment"><div class="line">%{</div><div class="line"><span class="preprocessor">  #include &lt;stdio.h&gt;</span></div><div class="line">%}</div><div class="line"></div><div class="line">%o flex <a class="code" href="namespacereflex_1_1convert__flag.html#a32e4f47592b2442c814a32502365a8e3">freespace</a> <a class="code" href="reflex_8cpp.html#a3c04138a5bfe5d72780bb7e82a18e627">main</a></div><div class="line"></div><div class="line">directive       ^ \h* # (. | \\ \r? \n)+</div><div class="line">name            [\u\l_] \w*</div><div class="line">udec            0 | [1-9] \d*</div><div class="line">uhex            0 [Xx] [[:xdigit:]]+</div><div class="line">uoct            0 [0-7]+</div><div class="line"><span class="keywordtype">int</span>             [-+]? ({udec} | {uhex}) \</div><div class="line">                  ([Ll]{0,2} [Uu]? | [Uu] [Ll]{0,2})</div><div class="line"><span class="keywordtype">float</span>           [-+] \d* (\d | \.\d | \d\.) \d* \</div><div class="line">                  ([Ee][-+]? \d+)? \</div><div class="line">                  [FfLl]?</div><div class="line"><span class="keywordtype">char</span>            L? <span class="stringliteral">&#39; (\\. | [^\\\n&#39;</span>])* <span class="stringliteral">&#39;</span></div><div class="line"><span class="stringliteral">string          L? \&quot; (\\. | \\\r?\n | [^\\\n&quot;])* \&quot;</span></div><div class="line"><span class="stringliteral"></span></div><div class="line"><span class="stringliteral">%%</span></div><div class="line"><span class="stringliteral"></span></div><div class="line"><span class="stringliteral">\s+</span></div><div class="line"><span class="stringliteral">&quot;//&quot; .*? \n</span></div><div class="line"><span class="stringliteral">&quot;/*&quot; (.|\n)*? &quot;*/&quot;</span></div><div class="line"><span class="stringliteral">{directive}     { printf(&quot;DIRECTIVE %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{name}          { printf(&quot;NAME      %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{int}           { printf(&quot;INT       %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{float}         { printf(&quot;FLOAT     %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{char}          { printf(&quot;CHAR      %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{string}        { printf(&quot;STRING    %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">[[:punct:]]     { printf(&quot;PUNCT     %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">.               { printf(&quot;*** ERROR &#39;</span>%s<span class="stringliteral">&#39; at line %d\n&quot;, yytext, yylineno); }</span></div><div class="line"><span class="stringliteral"></span></div><div class="line"><span class="stringliteral">%%</span></div></div><!-- fragment --> </div><p>Free space mode permits spacing between concatenations and alternations. To match a single space, use <code>" "</code> or <code>[ ]</code>. Long patterns can continue on the next line(s) when lines ends with an escape <code>\</code>.</p>
+<div class="alt"> <div class="fragment"><div class="line">%{</div><div class="line"><span class="preprocessor">  #include &lt;stdio.h&gt;</span></div><div class="line">%}</div><div class="line"></div><div class="line">%o flex <a class="code" href="namespacereflex_1_1convert__flag.html#a32e4f47592b2442c814a32502365a8e3">freespace</a> <a class="code" href="reflex_8cpp.html#a3c04138a5bfe5d72780bb7e82a18e627">main</a></div><div class="line"></div><div class="line">directive       ^ \h* # (. | \\ \r? \n)+</div><div class="line">name            [\u\l_] \w*</div><div class="line">udec            0 | [1-9] [0-9]*</div><div class="line">uhex            0 [Xx] [[:xdigit:]]+</div><div class="line">uoct            0 [0-7]+</div><div class="line"><span class="keywordtype">int</span>             [-+]? ({udec} | {uhex}) \</div><div class="line">                  ([Ll]{0,2} [Uu]? | [Uu] [Ll]{0,2})</div><div class="line"><span class="keywordtype">float</span>           [-+] [0-9]* ([0-9] | \.[0-9] | [0-9]\.) [0-9]* \</div><div class="line">                  ([Ee][-+]? [0-9]+)? \</div><div class="line">                  [FfLl]?</div><div class="line"><span class="keywordtype">char</span>            L? <span class="stringliteral">&#39; (\\. | [^\\\n&#39;</span>])* <span class="stringliteral">&#39;</span></div><div class="line"><span class="stringliteral">string          L? \&quot; (\\. | \\\r?\n | [^\\\n&quot;])* \&quot;</span></div><div class="line"><span class="stringliteral"></span></div><div class="line"><span class="stringliteral">%%</span></div><div class="line"><span class="stringliteral"></span></div><div class="line"><span class="stringliteral">\s+</span></div><div class="line"><span class="stringliteral">&quot;//&quot; .*? \n</span></div><div class="line"><span class="stringliteral">&quot;/*&quot; (.|\n)*? &quot;*/&quot;</span></div><div class="line"><span class="stringliteral">{directive}     { printf(&quot;DIRECTIVE %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{name}          { printf(&quot;NAME      %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{int}           { printf(&quot;INT       %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{float}         { printf(&quot;FLOAT     %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{char}          { printf(&quot;CHAR      %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">{string}        { printf(&quot;STRING    %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">[[:punct:]]     { printf(&quot;PUNCT     %s\n&quot;, yytext); }</span></div><div class="line"><span class="stringliteral">.               { printf(&quot;*** ERROR &#39;</span>%s<span class="stringliteral">&#39; at line %d\n&quot;, yytext, yylineno); }</span></div><div class="line"><span class="stringliteral"></span></div><div class="line"><span class="stringliteral">%%</span></div></div><!-- fragment --> </div><p>Free space mode permits spacing between concatenations and alternations. To match a single space, use <code>" "</code> or <code>[ ]</code>. Long patterns can continue on the next line(s) when lines ends with an escape <code>\</code>.</p>
 <p>In free space mode you MUST place actions in <em><code>{ }</code></em> blocks and user code in <em><code>%{ %}</code></em> blocks instead of indented.</p>
 <p>When used with option <code>unicode</code>, the scanner automatically recognizes and scans Unicode identifier names. Note that we can use <code>matcher().columno()</code> or <code>matcher().border()</code> in the error message to indicate the location on a line of the match. The <code>matcher().columno()</code> method takes tab spacing and wide characters into account. To obtain the byte offset from the start of the line use <code>matcher().border()</code>. The <code>matcher()</code> object associated with the Lexer offers several other methods that Flex does not support.</p>
 <p>🔝 <a href="#">Back to table of contents</a></p>
@@ -2646,7 +2678,7 @@ Regex converters                                               </h2>
 <tr>
 <td><code><a class="el" href="namespacereflex_1_1convert__flag.html#a1e3e66422498b8e4c6fd7770393ea988" title="convert \uXXXX and UTF-16 surrogate pairs ">reflex::convert_flag::u4</a></code> </td><td>convert <code>\uXXXX</code> (shorthand for <code>\u{XXXX}</code>), may conflict with <code>\u</code> (upper case letter). </td></tr>
 <tr>
-<td><code><a class="el" href="namespacereflex_1_1convert__flag.html#aaed1f496284028394303d24be3e7bbb9" title="inverted character classes do not match newline \n ">reflex::convert_flag::notnewline</a></code> </td><td>inverted character classes do not match newline <code>\n</code>, e.g. <code>[^a-z]</code> does not match <code>\n</code> </td></tr>
+<td><code><a class="el" href="namespacereflex_1_1convert__flag.html#aaed1f496284028394303d24be3e7bbb9" title="inverted character classes and  do not match newline \n ">reflex::convert_flag::notnewline</a></code> </td><td>inverted character classes do not match newline <code>\n</code>, e.g. <code>[^a-z]</code> does not match <code>\n</code> </td></tr>
 <tr>
 <td><code><a class="el" href="namespacereflex_1_1convert__flag.html#a2fcbe121a0a80ba46baa1a4b67b045df" title="convert Unicode to compact UTF-8 patterns and DFA, permits some invalid UTF-8 sequences ...">reflex::convert_flag::permissive</a></code> </td><td>when used with <code>unicode</code>, produces a more compact FSM that tolerates some invalid UTF-8 sequences </td></tr>
 </table>
@@ -3355,7 +3387,7 @@ License and copyright                                                </h1>
 </div></div><!-- contents -->
 <hr class="footer">
 <address class="footer"><small>
-Converted on Sat Oct 24 2020 13:57:53 by <a target="_blank" href="http://www.doxygen.org/index.html">Doxygen</a> 1.8.11</small></address>
+Converted on Sun Jun 6 2021 22:21:28 by <a target="_blank" href="http://www.doxygen.org/index.html">Doxygen</a> 1.8.11</small></address>
 <br>
 <div style="height: 246px; background: #DBDBDB;">
 </body>
