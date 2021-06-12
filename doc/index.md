@@ -25,8 +25,10 @@ Features:
 
 - faster than Flex++ for typical applications such as tokenization;
 - accepts Flex/Lex lexer specifications, extended to support Unicode;
-- fully supports Unicode, auto-detects UTF-8/16/32 input;
+- IEEE POSIX P1003.2 standard compliant (like Lex and Flex);
+- fully supports Unicode, auto-detects UTF-8/16/32 with smart input handling;
 - supports legacy file encoding formats, e.g. CP 1250, EBCDIC.
+- offers methods for lex/syntax \ref errors;
 - easily integrates with Bison reentrant, C++, bridge and location parsers;
 - generates source code that is easy to understand;
 - generates thread-safe scanners;
@@ -1351,12 +1353,12 @@ encoded character in a regex is properly matched as one wide character.
 #### `-x`, `−−freespace`
 
 This option switches the <b>`reflex`</b> scanner to *free space mode*.  Regular
-expressions in free space mode may contain spacing to improve readability.
-Spacing within regular expressions is ignored, so use `" "` or `[ ]` to match a
-space and `\h` to match a space or a tab character.  Actions in free space mode
-MUST be placed in <i>`{ }`</i> blocks and user code must be placed in
-<i>`%{ %}`</i> blocks.  Patterns ending in an escape `\` continue on the next
-line.
+expressions in free space mode may contain spacing and may be indented to
+improve readability.  All spacing before, within and after regular expressions
+is ignored.  To match a space use `" "` or `[ ]`, and use `\h` to match a space
+or a tab character.  Actions in free space mode MUST be placed in <i>`{ }`</i>
+blocks and user code must be placed in <i>`%{ %}`</i> blocks.  Patterns ending
+in an escape `\` continue on the next line.
 
 🔝 [Back to table of contents](#)
 
@@ -2385,9 +2387,11 @@ patterns `φ` and `ψ`:
   `\N`      | matches any single character except newline
   `\0`      | matches the NUL character
   `\cX`     | matches the control character `X` mod 32 (e.g. `\cA` is `\x01`)
-  `\0177`   | matches an 8-bit character with octal value `177` (use `\177` in lexer specifications instead, see below)
+  `\0141`   | matches an 8-bit character with octal value `141` (use `\141` in lexer specifications instead, see below)
   `\x7f`    | matches an 8-bit character with hexadecimal value `7f`
-  `\x{7f}`  | matches an 8-bit character with hexadecimal value `7f`
+  `\x{3B1}` | matches Unicode character U+03B1, i.e. `α`
+  `\u{3B1}` | matches Unicode character U+03B1, i.e. `α`
+  `\o{141}` | matches U+0061, i.e. `a`, in octal
   `\p{C}`   | matches a character in category C of \ref reflex-pattern-cat
   `\Q...\E` | matches the quoted content between `\Q` and `\E` literally
   `[abc]`   | matches one of `a`, `b`, or `c` as \ref reflex-pattern-class
@@ -2410,7 +2414,7 @@ patterns `φ` and `ψ`:
   `(?:φ)`   | matches `φ` without group capture
   `(?=φ)`   | matches `φ` without consuming it (\ref reflex-pattern-lookahead)
   `(?<=φ)`  | matches `φ` to the left without consuming it (\ref reflex-pattern-lookbehind, not supported by the RE/flex matcher)
-  `(?^φ)`   | matches `φ` and ignore it to continue matching (RE/flex matcher only)
+  `(?^φ)`   | matches `φ` and ignores it, marking everything as a non-match to continue matching (RE/flex matcher only)
   `^φ`      | matches `φ` at the begin of input or begin of a line (requires multi-line mode) (top-level `φ`, not nested in a sub-pattern)
   `φ$`      | matches `φ` at the end of input or end of a line (requires multi-line mode) (top-level `φ`, not nested in a sub-pattern)
   `\Aφ`     | matches `φ` at the begin of input (top-level `φ`, not nested in a sub-pattern)
@@ -2496,7 +2500,8 @@ unless in standard-conforming modes, such as `-ansi` and `-std=c++98`.
 ### Character classes                                   {#reflex-pattern-class}
 
 Character classes in bracket lists represent sets of characters.  Sets can be
-negated (or inverted), subtracted, intersected, and merged:
+negated (or inverted), subtracted, intersected, and merged (except for the
+`PCRE2Matcher`):
 
   Pattern           | Matches
   ----------------- | ---------------------------------------------------------
@@ -2515,10 +2520,10 @@ It is an error to construct an empty character class by subtraction or by
 intersection, for example `[a&&[b]]` is invalid.
 
 Bracket lists may contain ASCII and Unicode \ref reflex-pattern-cat, for
-example `[a-z\d]` and `[a-z[:digit:]]` contain the letters `a` to `z` and
-digits `0` to `9`.  To add Unicode character categories and wide characters
-(encoded in UTF-8) to bracket lists \ref reflex-pattern-unicode should be
-enabled.
+example `[a-z\d]` contains the letters `a` to `z` and digits `0` to `9` (or
+Unicode digits when Unicode is enabled).  To add Unicode character categories
+and wide characters (encoded in UTF-8) to bracket lists
+\ref reflex-pattern-unicode should be enabled.
 
 An negated Unicode character class is constructed by subtracting the character
 class from the Unicode range U+0000 to U+D7FF and U+E000 to U+10FFFF.
@@ -2609,14 +2614,14 @@ The 7-bit ASCII POSIX character categories are:
   `[:alnum:]`  | `\p{Alnum}`       | matches a alphanumeric character `[0-9A-Za-z]`
   `[:alpha:]`  | `\p{Alpha}`       | matches a letter `[A-Za-z]`
   `[:blank:]`  | `\p{Blank}`, `\h` | matches a blank `[ \t]`
-  `[:digit:]`  | `\p{Digit}`, `\d` | matches a digit `[0-9]`
+  `[:digit:]`  | `\p{Digit}`       | matches a digit `[0-9]`
   `[:graph:]`  | `\p{Graph}`       | matches a visible character `[\x21-\x7e]`
   `[:lower:]`  | `\p{Lower}`       | matches a lower case letter `[a-z]`
   `[:punct:]`  | `\p{Punct}`       | matches a punctuation character `[\x21-\x2f\x3a-\x40\x5b-\x60\x7b-\x7e]`
   `[:upper:]`  | `\p{Upper}`       | matches an upper case letter `[A-Z]`
   `[:word:]`   | `\p{Word}`        | matches a word character `[0-9A-Za-z_]`
   `[:^blank:]` | `\P{Blank}`, `\H` | matches a non-blank character `[^ \t]`
-  `[:^digit:]` | `\P{Digit}`, `\D` | matches a non-digit `[^0-9]`
+  `[:^digit:]` | `\P{Digit}`       | matches a non-digit `[^0-9]`
 
 The POSIX forms are used in bracket lists.  For example `[[:lower:][:digit:]]`
 matches an ASCII lower case letter or a digit.  
@@ -2638,14 +2643,27 @@ library:
   Unicode category                       | Matches
   -------------------------------------- | ------------------------------------
   `.`                                    | matches any single Unicode character except newline (including \ref invalid-utf)
-  `\X`                                   | matches any Unicode character (with or without the `−−unicode` option)
-  `\x{3B1}`, `\u{3B1}`                   | matches Unicode character U+03B1, i.e. `α`
+  `\a`                                   | matches BEL U+0007
+  `\d`                                   | matches a digit `\p{Nd}`
+  `\D`                                   | matches a non-digit
+  `\e`                                   | matches ESC U+001b
+  `\f`                                   | matches FF U+000c
+  `\l`                                   | matches a lower case letter `\p{Ll}`
+  `\n`                                   | matches LF U+000a
+  `\N`                                   | matches any non-LF character
+  `\r`                                   | matches CR U+000d
   `\R`                                   | matches a Unicode line break
-  `\s`, `\p{Zs}`                         | matches a white space character with Unicode sub-propert Zs
-  `\l`, `\p{Ll}`                         | matches a lower case letter with Unicode sub-property Ll
-  `\u`, `\p{Lu}`                         | matches an upper case letter with Unicode sub-property Lu
-  `\w`, `\p{Word}`                       | matches a Unicode word character with property L, Nd, or Pc
-  `\p{Unicode}`                          | matches any Unicode character (U+0000 to U+10FFFF minus U+D800 to U+DFFF)
+  `\s`                                   | matches a white space character `[ \t\v\f\r\x85\p{Z}]` excluding `\n`
+  `\S`                                   | matches a non-white space character
+  `\t`                                   | matches TAB U+0009
+  `\u`                                   | matches an upper case letter `\p{Lu}`
+  `\v`                                   | matches VT U+000b
+  `\w`                                   | matches a Unicode word character `[\p{L}\p{Nd}\p{Pc}]`
+  `\W`                                   | matches a non-Unicode word character
+  `\X`                                   | matches any ISO-8859-1 or Unicode character
+  `\p{Space}`                            | matches a white space character `[ \t\n\v\f\r\x85\p{Z}]` including `\n`
+  `\p{Unicode}`                          | matches any Unicode character U+0000 to U+10FFFF minus U+D800 to U+DFFF
+  `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F
   `\p{ASCII}`                            | matches an ASCII character U+0000 to U+007F)
   `\p{Non_ASCII_Unicode}`                | matches a non-ASCII character U+0080 to U+10FFFF minus U+D800 to U+DFFF)
   `\p{L&}`                               | matches a character with Unicode property L& (i.e. property Ll, Lu, or Lt)
@@ -3302,7 +3320,7 @@ the following patterns to be used:
   `[€¥£]` (UTF-8)    | matches wide character `€`, `¥` or `£`, encoded in UTF-8
   `\X`               | matches any ISO-8859-1 or Unicode character
   `\R`               | matches a Unicode line break `\r\n` or `[\u{000A}-\u{000D}u{U+0085}\u{2028}\u{2029}]`
-  `\s`               | matches a white space character with Unicode sub-property Zs
+  `\s`               | matches a white space character `[ \t\n\v\f\r\p{Z}]`
   `\l`               | matches a lower case letter with Unicode sub-property Ll
   `\u`               | matches an upper case letter with Unicode sub-property Lu
   `\w`               | matches a Unicode word character with property L, Nd, or Pc
@@ -4424,9 +4442,11 @@ construct is only useful when the empty scope is extended by start conditions
 specified in sub-scopes.
 
 @note Contrary to some Flex manuals, rules cannot be indented in a start
-condition scope in Flex and RE/flex.  When a code block is specified indented
-at the begin of a start condition scope it is considered an initial code block,
-see \ref reflex-code-blocks.
+condition scope.  When a code block is indented at the begin of a start
+condition scope it is considered an initial code block, see \ref
+reflex-code-blocks.  All indented lines are considered actions.  Note that
+<i>`%%option freespace`</i> allows patterns to be indented.  With this option
+all action code blocks must be bracketed.
 
 🔝 [Back to table of contents](#)
 
@@ -6061,13 +6081,13 @@ free space mode to enhance readability.
 
     directive       ^ \h* # (. | \\ \r? \n)+
     name            [\u\l_] \w*
-    udec            0 | [1-9] \d*
+    udec            0 | [1-9] [0-9]*
     uhex            0 [Xx] [[:xdigit:]]+
     uoct            0 [0-7]+
     int             [-+]? ({udec} | {uhex}) \
                       ([Ll]{0,2} [Uu]? | [Uu] [Ll]{0,2})
-    float           [-+] \d* (\d | \.\d | \d\.) \d* \
-                      ([Ee][-+]? \d+)? \
+    float           [-+] [0-9]* ([0-9] | \.[0-9] | [0-9]\.) [0-9]* \
+                      ([Ee][-+]? [0-9]+)? \
                       [FfLl]?
     char            L? ' (\\. | [^\\\n'])* '
     string          L? \" (\\. | \\\r?\n | [^\\\n"])* \"

@@ -21,7 +21,7 @@
      <td>
       <div style="float: right; font-size: 18px; font-weight: bold;">reflex Namespace Reference</div>
       <br>
-      <div style="float: right; font-size: 10px;">updated Sat Oct 24 2020 by Robert van Engelen</div>
+      <div style="float: right; font-size: 10px;">updated Sun Jun 6 2021 by Robert van Engelen</div>
      </td>
      <td width="10%">&nbsp;</td>
     </tr>
@@ -222,6 +222,8 @@ Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="var-members"></a>
 Variables</h2></td></tr>
+<tr class="memitem:a3e83e0fe35315269713462330b0fe05b"><td class="memItemLeft" align="right" valign="top">const unsigned short&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacereflex.html#a3e83e0fe35315269713462330b0fe05b">codepages</a> [][256]</td></tr>
+<tr class="separator:a3e83e0fe35315269713462330b0fe05b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9b15f365bfbaf8ac295c4ce259cd6cd8"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacereflex.html#a9b15f365bfbaf8ac295c4ce259cd6cd8">HW</a></td></tr>
 <tr class="separator:a9b15f365bfbaf8ac295c4ce259cd6cd8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
@@ -307,31 +309,40 @@ Variables</h2></td></tr>
 <p>A regex library signature is a string of the form <code>"decls:escapes?+."</code>.</p>
 <p>The optional <code>"decls:"</code> part specifies which modifiers and other special <code>(?...)</code> constructs are supported:</p><ul>
 <li>non-capturing group <code>(?:...)</code> is supported</li>
-<li>one or all of "imsx" specify which (?ismx) modifiers are supported:</li>
+<li>letters and digits specify which modifiers e.g. (?ismx) are supported:</li>
 <li>'i' specifies that <code>(?i...)</code> case-insensitive matching is supported</li>
 <li>'m' specifies that <code>(?m...)</code> multiline mode is supported for the ^ and $ anchors</li>
 <li>'s' specifies that <code>(?s...)</code> dotall mode is supported</li>
 <li>'x' specifies that <code>(?x...)</code> freespace mode is supported</li>
+<li>... any other letter or digit modifier, where digit modifiers support <code>(?123)</code> for example</li>
 <li><code>#</code> specifies that <code>(?#...)</code> comments are supported</li>
 <li><code>=</code> specifies that <code>(?=...)</code> lookahead is supported</li>
-<li><code>&lt;</code> specifies that <code>(?&lt;...)</code> lookbehind is supported</li>
+<li><code>&lt;</code> specifies that `(?'...)` 'name' groups are supported</li>
+<li><code>&lt;</code> specifies that <code>(?&lt;...)</code> lookbehind and &lt;name&gt; groups are supported</li>
+<li><code>&gt;</code> specifies that <code>(?&gt;...)</code> atomic groups are supported</li>
+<li><code>&gt;</code> specifies that <code>(?|...)</code> group resets are supported</li>
+<li><code>&gt;</code> specifies that <code>(?&amp;...)</code> subroutines are supported</li>
+<li><code>&gt;</code> specifies that <code>(?(...)</code> conditionals are supported</li>
 <li><code>!</code> specifies that <code>(?!=...)</code> and <code>(?!&lt;...)</code> are supported</li>
 <li><code>^</code> specifies that <code>(?^...)</code> negative (reflex) patterns are supported</li>
+<li><code>*</code> specifies that <code>(*VERB)</code> verbs are supported</li>
 </ul>
 <p>The <code>"escapes"</code> characters specify which standard escapes are supported:</p><ul>
 <li><code>a</code> for <code>\a</code> (BEL U+0007)</li>
-<li><code>b</code> for <code>\b</code> (BS U+0008) in brackets <code>[\b]</code> only AND the <code>\b</code> word boundary</li>
+<li><code>b</code> for <code>\b</code> the <code>\b</code> word boundary</li>
 <li><code>c</code> for <code>\cX</code> control character specified by <code>X</code> modulo 32</li>
-<li><code>d</code> for <code>\d</code> ASCII digit <code>[0-9]</code></li>
+<li><code>d</code> for <code>\d</code> digit <code>[0-9]</code> ASCII or <a class="el" href="namespacereflex_1_1_unicode.html">Unicode</a> digit</li>
 <li><code>e</code> for <code>\e</code> ESC U+001B</li>
 <li><code>f</code> for <code>\f</code> FF U+000C</li>
+<li><code>j</code> for <code>\g</code> group capture e.g. {1}</li>
 <li><code>h</code> for <code>\h</code> ASCII blank <code>[ \t]</code> (SP U+0020 or TAB U+0009)</li>
 <li><code>i</code> for <code>\i</code> reflex indent anchor</li>
 <li><code>j</code> for <code>\j</code> reflex dedent anchor</li>
-<li><code>j</code> for <code>\k</code> reflex undent anchor</li>
-<li><code>l</code> for <code>\l</code> ASCII lower case letter <code>[a-z]</code></li>
+<li><code>j</code> for <code>\k</code> reflex undent anchor or group capture e.g. {1}</li>
+<li><code>l</code> for <code>\l</code> lower case letter <code>[a-z]</code> ASCII or <a class="el" href="namespacereflex_1_1_unicode.html">Unicode</a> letter</li>
 <li><code>n</code> for <code>\n</code> LF U+000A</li>
-<li><code>p</code> for <code>\p{C}</code> <a class="el" href="namespacereflex_1_1_unicode.html">Unicode</a> character classes, also implies <a class="el" href="namespacereflex_1_1_unicode.html">Unicode</a> {X}, , , , , </li>
+<li><code>o</code> for <code>\o</code> octal ASCII or <a class="el" href="namespacereflex_1_1_unicode.html">Unicode</a> code</li>
+<li><code>p</code> for <code>\p{C}</code> <a class="el" href="namespacereflex_1_1_unicode.html">Unicode</a> character classes, also implies <a class="el" href="namespacereflex_1_1_unicode.html">Unicode</a> ., {X}, , , , , , and UTF-8 patterns</li>
 <li><code>r</code> for <code>\r</code> CR U+000D</li>
 <li><code>s</code> for <code>\s</code> space (SP, TAB, LF, VT, FF, or CR)</li>
 <li><code>t</code> for <code>\t</code> TAB U+0009</li>
@@ -367,7 +378,8 @@ Variables</h2></td></tr>
 <li><code>?</code> lazy quantifiers for repeats are supported</li>
 <li><code>+</code> possessive quantifiers for repeats are supported</li>
 </ul>
-<p>The optional <code>"."</code> (dot) specifies that dot matches any character except newline. A dot is implied by the presence of the 's' modifier, and can be omitted in that case. </p>
+<p>An optional <code>"."</code> (dot) specifies that dot matches any character except newline. A dot is implied by the presence of the 's' modifier, and can be omitted in that case.</p>
+<p>An optional <code>"["</code> specifies that bracket list union, intersection, and subtraction are supported, i.e. [&ndash;[a-z]]. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">pattern</td><td>regex string pattern to convert </td></tr>
@@ -1058,6 +1070,18 @@ template&lt;typename S1 , typename S2 &gt; </div>
 </div>
 </div>
 <h2 class="groupheader">Variable Documentation</h2>
+<a class="anchor" id="a3e83e0fe35315269713462330b0fe05b"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">const unsigned short reflex::codepages[][256]</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a class="anchor" id="a9b15f365bfbaf8ac295c4ce259cd6cd8"></a>
 <div class="memitem">
 <div class="memproto">
@@ -1073,7 +1097,7 @@ template&lt;typename S1 , typename S2 &gt; </div>
 </div><!-- contents -->
 <hr class="footer">
 <address class="footer"><small>
-Converted on Sat Oct 24 2020 13:57:47 by <a target="_blank" href="http://www.doxygen.org/index.html">Doxygen</a> 1.8.11</small></address>
+Converted on Sun Jun 6 2021 22:21:25 by <a target="_blank" href="http://www.doxygen.org/index.html">Doxygen</a> 1.8.11</small></address>
 <br>
 <div style="height: 246px; background: #DBDBDB;">
 </body>

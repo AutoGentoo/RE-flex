@@ -63,6 +63,8 @@
 
 namespace reflex {
 
+extern const unsigned short codepages[][256];
+
 /// Input character sequence class for unified access to sources of input text.
 /**
 Description
@@ -343,8 +345,7 @@ class Input {
       wstring_(NULL),
       file_(NULL),
       istream_(NULL),
-      size_(0),
-      handler_(NULL)
+      size_(0)
   {
     init();
   }
@@ -357,8 +358,10 @@ class Input {
       istream_(input.istream_),
       size_(input.size_),
       uidx_(input.uidx_),
+      ulen_(input.ulen_),
       utfx_(input.utfx_),
-      page_(input.page_)
+      page_(input.page_),
+      handler_(input.handler_)
   {
     std::memcpy(utf8_, input.utf8_, sizeof(utf8_));
   }
@@ -499,8 +502,10 @@ class Input {
     istream_ = input.istream_;
     size_ = input.size_;
     uidx_ = input.uidx_;
+    ulen_ = input.ulen_;
     utfx_ = input.utfx_;
     page_ = input.page_;
+    handler_ = input.handler_;
     std::memcpy(utf8_, input.utf8_, sizeof(utf8_));
     return *this;
   }
@@ -651,11 +656,9 @@ class Input {
     if (wstring_)
     {
       size_t k = n;
-      if (uidx_ < sizeof(utf8_))
+      if (ulen_ > 0)
       {
-        size_t l = 0;
-        while (uidx_ + l < sizeof(utf8_) && utf8_[uidx_ + l] != '\0')
-          ++l;
+        size_t l = ulen_;
         if (l > k)
           l = k;
         std::memcpy(s, utf8_ + uidx_, l);
@@ -663,12 +666,13 @@ class Input {
         if (k == 0)
         {
           uidx_ += static_cast<unsigned short>(l);
+          ulen_ -= static_cast<unsigned short>(l);
           if (size_ >= n)
             size_ -= n;
           return n;
         }
         s += l;
-        uidx_ = sizeof(utf8_);
+        ulen_ = 0;
       }
       wchar_t c;
       while ((c = *wstring_) != L'\0' && k > 0)
@@ -695,8 +699,8 @@ class Input {
           }
           if (k < l)
           {
-            utf8_[l] = '\0';
             uidx_ = static_cast<unsigned short>(k);
+            ulen_ = static_cast<unsigned short>(l);
             std::memcpy(s, utf8_, k);
             s += k;
             k = 0;
@@ -747,9 +751,11 @@ class Input {
   void init(file_encoding_type enc = file_encoding::plain)
   {
     std::memset(utf8_, 0, sizeof(utf8_));
-    uidx_ = sizeof(utf8_);
+    uidx_ = 0;
+    ulen_ = 0;
     utfx_ = 0;
     page_ = NULL;
+    handler_ = NULL;
     if (file_ != NULL)
       file_init(enc);
   }
@@ -777,8 +783,9 @@ class Input {
   FILE                 *file_;    ///< FILE* input (when non-null)
   std::istream         *istream_; ///< stream input (when non-null)
   size_t                size_;    ///< size of the remaining input in bytes (size_ == 0 may indicate size is not set)
-  char                  utf8_[8]; ///< UTF-8 normalization buffer
-  unsigned short        uidx_;    ///< index in utf8_[] or >= 8 when unused
+  char                  utf8_[8]; ///< UTF-8 normalization buffer, >=8 bytes
+  unsigned short        uidx_;    ///< index in utf8_[]
+  unsigned short        ulen_;    ///< length of data in utf8_[] or 0 if no data
   file_encoding_type    utfx_;    ///< file_encoding
   const unsigned short *page_;    ///< custom code page
   Handler              *handler_; ///< to handle FILE* errors and non-blocking FILE* reads

@@ -132,10 +132,12 @@ class AbstractMatcher {
       :
         A(false),
         N(false),
+        W(false),
         T(8)
     { }
     bool A; ///< accept any/all (?^X) negative patterns as Const::REDO accept index codes
     bool N; ///< nullable, find may return empty match (N/A to scan, split, matches)
+    bool W; ///< half-check for "whole words", check only left of \< and right of \> for non-word character
     char T; ///< tab size, must be a power of 2, default is 8, for column count and indent \i, \j, and \k
   };
   /// AbstractMatcher::Iterator class for scanning, searching, and splitting input character sequences.
@@ -299,7 +301,7 @@ class AbstractMatcher {
     if (own_)
     {
 #if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
       _aligned_free(static_cast<void*>(buf_));
 #else
       std::free(static_cast<void*>(buf_));
@@ -319,6 +321,7 @@ class AbstractMatcher {
     {
       opt_.A = false; // when true: accept any/all (?^X) negative patterns as Const::REDO accept index codes
       opt_.N = false; // when true: find may return empty match (N/A to scan, split, matches)
+      opt_.W = false; // when true: half-check for "whole words", check only left of \< and right of \> for non-word character
       opt_.T = 8;     // tab size 1, 2, 4, or 8
       if (opt)
       {
@@ -332,6 +335,9 @@ class AbstractMatcher {
             case 'N':
               opt_.N = true;
               break;
+            case 'W':
+              opt_.W = true;
+              break;
             case 'T':
               opt_.T = isdigit(*(s += (s[1] == '=') + 1)) ? static_cast<char>(*s - '0') : 0;
               break;
@@ -343,13 +349,13 @@ class AbstractMatcher {
     {
       max_ = 2 * Const::BLOCK;
 #if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
       buf_ = static_cast<char*>(_aligned_malloc(max_, 4096));
       if (buf_ == NULL)
         throw std::bad_alloc();
 #else
       buf_ = NULL;
-      if (::posix_memalign(reinterpret_cast<void**>(&buf_), 4096, max_) != 0)
+      if (posix_memalign(reinterpret_cast<void**>(&buf_), 4096, max_) != 0)
         throw std::bad_alloc();
 #endif
 #else
@@ -479,7 +485,7 @@ class AbstractMatcher {
       if (own_)
       {
 #if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
         _aligned_free(static_cast<void*>(buf_));
 #else
         std::free(static_cast<void*>(buf_));
@@ -1099,6 +1105,13 @@ class AbstractMatcher {
     }
     return buf_ + end_;
   }
+  /// Returns the number of bytes in the buffer available to search from the current begin()/text() position.
+  size_t avail()
+  {
+    if (peek() == EOF)
+      return 0;
+    return end_ - (txt_ - buf_);
+  }
   /// Returns the byte offset of the match from the start of the line.
   size_t border()
     /// @returns border offset
@@ -1407,7 +1420,7 @@ class AbstractMatcher {
         max_ *= 2;
       DBGLOG("Expand buffer to %zu bytes", max_);
 #if defined(WITH_REALLOC)
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
       char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
 #else
       char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
@@ -1457,7 +1470,7 @@ class AbstractMatcher {
         num_ += gap;
 #if defined(WITH_REALLOC)
         std::memmove(buf_, txt_, end_);
-#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if (defined(__WIN32__) || defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(__BORLANDC__)) && !defined(__CYGWIN__)
         char *newbuf = static_cast<char*>(_aligned_realloc(static_cast<void*>(buf_), max_, 4096));
 #else
         char *newbuf = static_cast<char*>(std::realloc(static_cast<void*>(buf_), max_));
