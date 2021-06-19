@@ -82,6 +82,8 @@ static const char *options_table[] = {
   "include",
   "indent",
   "input",
+  "input_filename",
+  "input_offset",
   "interactive",
   "lex",
   "lex_compat",
@@ -140,7 +142,7 @@ static const char *options_table[] = {
   "YYSTYPE",
   "7bit",
   "8bit",
-  NULL // end of table
+  nullptr // end of table
 };
 
 /// @brief Table with regex library properties.
@@ -261,7 +263,7 @@ static const Reflex::Library library_table[] = {
     "/* EXPERIMENTAL OPTION, NOT RECOMMENDED */ reflex::StdEcmaMatcher",
     "!=:bcdfnrstvwxBDSW?"
   },
-  { NULL, NULL, NULL, NULL, NULL } // end of table
+  { nullptr, nullptr, nullptr, nullptr, nullptr } // end of table
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -286,19 +288,6 @@ static std::string file_ext(std::string& name, const char *ext)
   if (n > m && (name.at(n - m - 1) != '.' || name.compare(n - m, m, ext) != 0))
     name.append(".").append(ext);
   return name;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//                                                                            //
-//  Main                                                                      //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
-
-/// Main program instantiates Reflex class and runs `Reflex::main(argc, argv)`
-int main(int argc, char **argv)
-{
-  Reflex().main(argc, argv);
-  return EXIT_SUCCESS;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -330,9 +319,9 @@ void Reflex::init(int argc, char **argv)
   const char *term = getenv("TERM");
   color_term = term && (strstr(term, "ansi") || strstr(term, "xterm") || strstr(term, "color"));
 #endif
-  for (const char *const *i = options_table; *i != NULL; ++i)
+  for (const char *const *i = options_table; *i != nullptr; ++i)
     options[*i] = "";
-  for (const Library *j = library_table; j->name != NULL; ++j)
+  for (const Library *j = library_table; j->name != nullptr; ++j)
     libraries[j->name] = *j;
   library = &libraries["reflex"];
   conditions.push_back("INITIAL");
@@ -372,19 +361,19 @@ void Reflex::init(int argc, char **argv)
             {
               const char *val = strchr(arg, '=');
               size_t len = strlen(arg);
-              if (val != NULL)
+              if (val != nullptr)
                 len = val - arg;
               std::string name(arg, len);
               size_t pos;
               while ((pos = name.find('-')) != std::string::npos)
                 name[pos] = '_';
-              StringMap::iterator i = options.find(name);
-              if (i == options.end())
+              auto j = options.find(name);
+              if (j == options.end())
                 help("unknown option --", arg);
-              if (val != NULL)
-                i->second = val + 1;
+              if (val != nullptr)
+                  j->second = val + 1;
               else
-                i->second = "true";
+                  j->second = "true";
             }
             is_grouped = false;
             break;
@@ -515,6 +504,11 @@ void Reflex::init(int argc, char **argv)
     }
   }
 
+  if (!options["input_offset"].empty())
+  {
+      lineno = std::stol(options["input_offset"]);
+  }
+
   set_library();
 }
 
@@ -534,7 +528,7 @@ void Reflex::help(const char *message, const char *arg)
     std::cout
       << "reflex: "
       << message
-      << (arg != NULL ? arg : "")
+      << (arg != nullptr ? arg : "")
       << std::endl;
   std::cout << "Usage: reflex [OPTIONS] [FILE]\n\
 \n\
@@ -601,6 +595,10 @@ void Reflex::help(const char *message, const char *arg)
                 generate main() to invoke lex() or yylex() once\n\
         -L, --noline\n\
                 suppress #line directives in scanner\n\
+        --input-filename=NAME\n\
+                Override filename placed in #line directives\n\
+        --input-offset=OFFSET\n\
+                Offset line number of all #line directives\n\
         -P NAME, --prefix=NAME\n\
                 use NAME as prefix of the FlexLexer class name and its members\n\
         --nostdinit\n\
@@ -683,7 +681,7 @@ void Reflex::set_library()
     size_t pos;
     while ((pos = name.find('-')) != std::string::npos)
       name[pos] = '_';
-    LibraryMap::iterator i = libraries.find(name);
+    auto i = libraries.find(name);
     if (i != libraries.end())
     {
       library = &i->second;
@@ -714,9 +712,14 @@ void Reflex::parse()
   if (!infile.empty())
   {
     fopen_s(&file, infile.c_str(), "r");
-    if (file == NULL)
+    if (file == nullptr)
       abort("cannot open file ", infile.c_str());
   }
+  else if (!options["input_filename"].empty())
+  {
+      infile = options["input_filename"];
+  }
+
   in = file;
   parse_section_1();
   parse_section_2();
@@ -728,9 +731,9 @@ void Reflex::parse()
 /// Parse the specified %%include file
 void Reflex::include(const std::string& filename)
 {
-  FILE *file = NULL;
+  FILE *file = nullptr;
   fopen_s(&file, filename.c_str(), "r");
-  if (file == NULL)
+  if (file == nullptr)
     abort("cannot include file ", filename.c_str());
   std::string save_infile(infile);
   infile = filename;
@@ -762,7 +765,7 @@ bool Reflex::get_line()
   while ((c = in.get()) != EOF && c != '\n')
   {
     if (c != '\r')
-      line.push_back(c);
+      line.push_back(static_cast<char>(c));
   }
   linelen = line.length();
   while (linelen > 0 && std::isspace(line.at(linelen - 1)))
@@ -837,7 +840,7 @@ bool Reflex::ins(const char *s)
 /// Match s then look for a '{' at the end of the line (skipping whitespace) and return true, false otherwise (pos is unchanged)
 bool Reflex::br(size_t pos, const char *s)
 {
-  if (s != NULL)
+  if (s != nullptr)
   {
     if (pos >= linelen || *s == '\0' || lower(line.at(pos)) != *s++)
       return false;
@@ -1082,9 +1085,9 @@ bool Reflex::get_pattern(size_t& pos, std::string& pattern, std::string& regex)
         // line ends in \ and continues on the next line
         pattern.append(line.substr(loc, pos - loc));
         if (!get_line())
-          error("EOF encountered inside a pattern", NULL, at_lineno);
+          error("EOF encountered inside a pattern", nullptr, at_lineno);
         if (is("%%"))
-          error("%% section ending encountered inside a pattern", NULL, at_lineno);
+          error("%% section ending encountered inside a pattern", nullptr, at_lineno);
         pos = 0;
         (void)ws(pos); // skip indent, if any
         loc = pos;
@@ -1158,16 +1161,16 @@ std::string Reflex::get_code(size_t& pos)
     while (pos >= linelen)
     {
       if (!get_line())
-        error("EOF encountered inside an action", NULL, at_lineno);
+        error("EOF encountered inside an action", nullptr, at_lineno);
       pos = 0;
       if (tok == CODE)
       {
         if (is("%%"))
         {
           if (lev > 0 || (!is_usercode && blk > 0))
-            error("%% section ending encountered inside an action where } is expected", NULL, at_lineno);
+            error("%% section ending encountered inside an action where } is expected", nullptr, at_lineno);
           else if (blk > 0)
-            error("%% section ending encountered inside an action where %} is expected", NULL, at_lineno);
+            error("%% section ending encountered inside an action where %} is expected", nullptr, at_lineno);
         }
         if (is("%{"))
         {
@@ -1268,10 +1271,10 @@ std::string Reflex::escape_bs(const std::string& s)
 std::string Reflex::upper_name(const std::string& s)
 {
   std::string t;
-  for (size_t i = 0; i < s.size(); ++i)
+  for (char i : s)
   {
-    if (std::isalnum(s.at(i)))
-      t.push_back(std::toupper(s.at(i)));
+    if (std::isalnum(i))
+      t.push_back(std::toupper(i));
     else
       t.push_back('_');
   }
@@ -1346,7 +1349,7 @@ bool Reflex::get_starts(size_t& pos, Starts& starts)
           continue;
         if (start == conditions.size())
           error("undeclared start condition ", name.c_str());
-        Starts::iterator i = starts.find(start);
+        auto i = starts.find(start);
         if (i != starts.end())
         {
           if (reverse)
@@ -1378,7 +1381,7 @@ void Reflex::abort(const char *message, const char *arg)
     SGR("\033[0m") << "reflex: " <<
     SGR("\033[1;31m") << "error: " << SGR("\033[0m") <<
     message <<
-    SGR("\033[1m") << (arg != NULL ? arg : "") << SGR("\033[0m") <<
+    SGR("\033[1m") << (arg != nullptr ? arg : "") << SGR("\033[0m") <<
     std::endl;
   exit(EXIT_FAILURE);
 }
@@ -1390,7 +1393,7 @@ void Reflex::error(const char *message, const char *arg, size_t at_lineno)
     SGR("\033[0m") << (infile.empty() ? "(stdin)" : infile.c_str()) << ":" << (at_lineno ? at_lineno : lineno) << ": " <<
     SGR("\033[1;31m") << "error: " << SGR("\033[0m") <<
     message <<
-    SGR("\033[1m") << (arg != NULL ? arg : "") << SGR("\033[0m") <<
+    SGR("\033[1m") << (arg != nullptr ? arg : "") << SGR("\033[0m") <<
     std::endl;
   exit(EXIT_FAILURE);
 }
@@ -1403,7 +1406,7 @@ void Reflex::warning(const char *message, const char *arg, size_t at_lineno)
       SGR("\033[0m") << (infile.empty() ? "(stdin)" : infile.c_str()) << ":" << (at_lineno ? at_lineno : lineno) << ": " <<
       SGR("\033[1;35m") << "warning: " << SGR("\033[0m") <<
       message <<
-      SGR("\033[1m") << (arg != NULL ? arg : "") << SGR("\033[0m") <<
+      SGR("\033[1m") << (arg != nullptr ? arg : "") << SGR("\033[0m") <<
       std::endl;
 }
 
@@ -1510,7 +1513,7 @@ void Reflex::parse_section_1()
                     error("bad %option name or value");
                   if (name != "c__") // %option c++ has no effect
                   {
-                    StringMap::iterator i = options.find(name);
+                    auto i = options.find(name);
                     if (i == options.end())
                       error("unrecognized %option: ", name.c_str());
                     (void)ws(pos);
@@ -1531,7 +1534,7 @@ void Reflex::parse_section_1()
                       i->second = "true";
                       if (name.compare(0, 2, "no") == 0)
                       {
-                        StringMap::iterator j = options.find(name.substr(2));
+                        auto j = options.find(name.substr(2));
                         if (j != options.end() && j->second.compare("true") == 0)
                         {
                           warning("disabling an initially enabled %option ", name.c_str() + 2);
@@ -1541,7 +1544,7 @@ void Reflex::parse_section_1()
                       else
                       {
                         std::string noname("no");
-                        StringMap::iterator j = options.find(noname.append(name));
+                        auto j = options.find(noname.append(name));
                         if (j != options.end() && j->second.compare("true") == 0)
                         {
                           warning("enabling an initially disabled %option ", noname.c_str());
@@ -1829,7 +1832,7 @@ void Reflex::write()
           out = &ofs;
         }
       }
-      write_regex(NULL, patterns[start]);
+      write_regex(nullptr, patterns[start]);
       *out << std::endl;
       if (!ofs.good())
         abort("error in writing");
@@ -3154,12 +3157,12 @@ void Reflex::write_regex(const std::string *condition, const std::string& regex)
       *out << "  static const char *REGEX_" << *condition << " = ";
     *out << "\"";
     int c = '\0';
-    for (std::string::const_iterator i = regex.begin(); i != regex.end(); ++i)
+    for (char i : regex)
     {
-      if (*i == '\\' || *i == '"' || (*i == '?' && c == '?'))
+      if (i == '\\' || i == '"' || (i == '?' && c == '?'))
         *out << "\\";
-      *out << *i;
-      c = *i;
+      *out << i;
+      c = i;
     }
     *out << "\"";
   }
@@ -3168,16 +3171,16 @@ void Reflex::write_regex(const std::string *condition, const std::string& regex)
     if (condition)
       *out << "  static const char REGEX_" << *condition << "[" << regex.size() + 1 << "] = ";
     *out << "{ ";
-    for (std::string::const_iterator i = regex.begin(); i != regex.end(); ++i)
+    for (char i : regex)
     {
-      if (*i == '\\')
+      if (i == '\\')
         *out << "'\\\\',";
-      else if (*i == '\'')
+      else if (i == '\'')
         *out << "'\\'',";
-      else if (std::isprint(static_cast<unsigned char>(*i)))
-        *out << "'" << *i << "', ";
+      else if (std::isprint(static_cast<unsigned char>(i)))
+        *out << "'" << i << "', ";
       else
-        *out << static_cast<int>(*i) << ", ";
+        *out << static_cast<int>(i) << ", ";
     }
     *out << "0 }";
   }
@@ -3282,10 +3285,10 @@ void Reflex::stats()
       {
         reflex::Pattern pattern(patterns[start], option);
         reflex::Pattern::Index accept = 1;
-        for (size_t rule = 0; rule < rules[start].size(); ++rule)
-          if (rules[start][rule].regex != "<<EOF>>")
+        for (auto & rule : rules[start])
+          if (rule.regex != "<<EOF>>")
             if (!pattern.reachable(accept++))
-              warning("rule cannot be matched because a previous rule subsumes it, perhaps try to move this rule up?", "", rules[start][rule].code.lineno);
+              warning("rule cannot be matched because a previous rule subsumes it, perhaps try to move this rule up?", "", rule.code.lineno);
         reflex::Pattern::Index n = 0;
         if (!patterns[start].empty())
           n = pattern.size();
